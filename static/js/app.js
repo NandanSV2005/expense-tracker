@@ -16,12 +16,14 @@ let State = {
 // --- History Handling ---
 window.onpopstate = (event) => {
     const s = event.state;
-    if (!s) {
-        renderDashboard(false); // false = don't push state
+    if (!s || s.view === 'dashboard') {
+        State.currentGroup = null;
+        State.currentCategory = null;
+        renderDashboard();
     } else if (s.view === 'group') {
         State.currentGroup = s.data;
         State.currentCategory = null;
-        fetchExpenses(s.data.id, false); // false = don't push
+        fetchExpenses(s.data.id, false);
     } else if (s.view === 'category') {
         State.currentCategory = s.data.cat;
         State.currentGroup = s.data.group;
@@ -283,7 +285,8 @@ const renderGroupDetails = () => {
                 </div>
                 <div>
                     <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.created_at).toLocaleDateString()}</p>
+                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
+                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
             <span class="font-bold text-gray-800">₹${e.amount}</span>
@@ -342,7 +345,8 @@ const renderCategoryDetails = () => {
                 </div>
                 <div>
                     <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.created_at).toLocaleDateString()}</p>
+                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
+                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
             <span class="font-bold text-gray-800">₹${e.amount}</span>
