@@ -40,6 +40,11 @@ class ExpenseCreate(BaseModel):
     group_id: int
     paid_by_id: int
 
+class ExpenseUpdate(BaseModel):
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+
 # Dependency
 def get_db():
     session = db.SessionLocal()
@@ -122,7 +127,34 @@ def add_expense(expense: ExpenseCreate, session: Session = Depends(get_db)):
     )
     session.add(new_expense)
     session.commit()
+    session.add(new_expense)
+    session.commit()
     return {"message": "Expense added"}
+
+@app.delete("/api/expenses/{expense_id}")
+def delete_expense(expense_id: int, session: Session = Depends(get_db)):
+    expense = session.query(db.Expense).filter(db.Expense.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    session.delete(expense)
+    session.commit()
+    return {"message": "Expense deleted"}
+
+@app.put("/api/expenses/{expense_id}")
+def update_expense(expense_id: int, expense_update: ExpenseUpdate, session: Session = Depends(get_db)):
+    expense = session.query(db.Expense).filter(db.Expense.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    if expense_update.amount is not None:
+        expense.amount = expense_update.amount
+    if expense_update.category is not None:
+        expense.category = expense_update.category
+    if expense_update.description is not None:
+        expense.description = expense_update.description
+        
+    session.commit()
+    return {"message": "Expense updated"}
 
 @app.post("/api/groups/join")
 def join_group(code: str, user_id: int, session: Session = Depends(get_db)):

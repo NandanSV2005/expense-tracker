@@ -10,7 +10,9 @@ let State = {
     hasFetchedGroups: false, // Prevent infinite loop
     sortBy: 'date-desc', // 'date-desc' or 'date-asc'
     filterDate: null, // yyyy-mm-dd string
-    currentCategory: null // null or string
+    filterDate: null, // yyyy-mm-dd string
+    currentCategory: null, // null or string
+    editingExpenseId: null // null or int
 };
 
 // --- History Handling ---
@@ -132,6 +134,18 @@ const addExpense = async (amount, category, description) => {
         group_id: State.currentGroup.id,
         paid_by_id: State.user.id
     });
+    fetchExpenses(State.currentGroup.id);
+};
+
+const updateExpense = async (id, amount, category, description) => {
+    await apiCall(`/expenses/${id}`, 'PUT', { amount: parseFloat(amount), category, description });
+    fetchExpenses(State.currentGroup.id);
+    State.editingExpenseId = null;
+};
+
+const deleteExpense = async (id) => {
+    if (!confirm("Delete this expense?")) return;
+    await apiCall(`/expenses/${id}`, 'DELETE');
     fetchExpenses(State.currentGroup.id);
 };
 
@@ -289,7 +303,15 @@ const renderGroupDetails = () => {
                     <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
-            <span class="font-bold text-gray-800">₹${e.amount}</span>
+                </div>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <span class="font-bold text-gray-800">₹${e.amount}</span>
+                <div class="flex gap-2 text-xs text-gray-400">
+                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600">Edit</button>
+                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600">Del</button>
+                </div>
+            </div>
         </div>
     `).join('');
 
@@ -349,7 +371,15 @@ const renderCategoryDetails = () => {
                     <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
-            <span class="font-bold text-gray-800">₹${e.amount}</span>
+                </div>
+            </div>
+             <div class="flex flex-col items-end gap-1">
+                <span class="font-bold text-gray-800">₹${e.amount}</span>
+                <div class="flex gap-2 text-xs text-gray-400">
+                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600">Edit</button>
+                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600">Del</button>
+                </div>
+            </div>
         </div>
     `).join('');
 
@@ -377,10 +407,13 @@ const renderCategoryDetails = () => {
 }
 
 // Re-usable modal
-const renderAddModal = () => `
+// Re-usable modal
+const renderAddModal = () => {
+    const isEdit = State.editingExpenseId !== null;
+    return `
     <div id="addModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-lg w-full max-w-sm fade-in">
-            <h3 class="text-xl font-bold mb-4">Add Expense</h3>
+            <h3 class="text-xl font-bold mb-4">${isEdit ? 'Edit Expense' : 'Add Expense'}</h3>
             <form onsubmit="event.preventDefault(); submitExpense(this)">
                 <input type="text" name="desc" placeholder="Description" class="w-full border p-2 rounded mb-4" required>
                 <input type="number" name="amount" placeholder="Amount (INR)" class="w-full border p-2 rounded mb-4" required>
@@ -395,13 +428,14 @@ const renderAddModal = () => `
                     <option value="Other">Other</option>
                 </select>
                 <div class="flex justify-end gap-2">
-                    <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="text-gray-500 px-3 py-1">Cancel</button>
-                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded">Add</button>
+                    <button type="button" onclick="closeModal()" class="text-gray-500 px-3 py-1">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded">${isEdit ? 'Update' : 'Add'}</button>
                 </div>
             </form>
         </div>
     </div>
-`;
+    `;
+};
 
 const groupedCategories = {
     'Grocery': true, 'Fuel': true, 'Medical': true, 'Household': true,
@@ -449,9 +483,38 @@ window.promptCreateGroup = () => {
 };
 
 window.submitExpense = (form) => {
-    addExpense(form.amount.value, form.category.value, form.desc.value);
-    document.getElementById('addModal').classList.add('hidden');
+    if (State.editingExpenseId) {
+        updateExpense(State.editingExpenseId, form.amount.value, form.category.value, form.desc.value);
+    } else {
+        addExpense(form.amount.value, form.category.value, form.desc.value);
+    }
+    closeModal();
     form.reset();
+};
+
+window.editExpense = (id) => {
+    const expense = State.expenses.find(e => e.id === id);
+    if (!expense) return;
+    State.editingExpenseId = id;
+    render(); // Re-render to update modal title
+
+    // Fill form
+    setTimeout(() => {
+        const modal = document.getElementById('addModal');
+        modal.classList.remove('hidden');
+        const form = modal.querySelector('form');
+        form.desc.value = expense.description;
+        form.amount.value = expense.amount;
+        form.category.value = expense.category;
+    }, 0);
+};
+
+window.deleteExpense = deleteExpense;
+
+window.closeModal = () => {
+    document.getElementById('addModal').classList.add('hidden');
+    State.editingExpenseId = null;
+    render(); // Reset modal state
 };
 
 window.login = login;
