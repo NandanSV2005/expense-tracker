@@ -6,7 +6,9 @@ let State = {
     currentGroup: null,
     groups: [],
     expenses: [],
-    hasFetchedGroups: false // Prevent infinite loop
+    hasFetchedGroups: false, // Prevent infinite loop
+    sortBy: 'date-desc', // 'date-desc' or 'date-asc'
+    currentCategory: null // null or string
 };
 
 // --- API Helpers ---
@@ -113,6 +115,37 @@ const addExpense = async (amount, category, description) => {
     fetchExpenses(State.currentGroup.id);
 };
 
+// --- UI Helpers ---
+const getFilteredAndSortedExpenses = () => {
+    let filtered = State.expenses;
+    if (State.currentCategory) {
+        filtered = filtered.filter(e => e.category === State.currentCategory);
+    }
+
+    return filtered.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.date);
+        const dateB = new Date(b.created_at || b.date);
+        return State.sortBy === 'date-desc' ? dateB - dateA : dateA - dateB;
+    });
+};
+
+const getCategoryColor = (cat) => {
+    const colors = {
+        'Grocery': 'bg-green-500',
+        'Fuel': 'orange-500',
+        'Medical': 'bg-red-500',
+        'Household': 'bg-purple-500',
+        'Entertainment': 'bg-pink-500',
+        'Dining': 'bg-yellow-500',
+        'Transport': 'bg-blue-500',
+        'Other': 'bg-gray-500'
+    };
+    return colors[cat] || 'bg-gray-500';
+};
+
+// --- Category Config ---
+// reused global getCategoryColor
+
 // --- Router / Renderer ---
 const app = document.getElementById('app');
 
@@ -127,7 +160,11 @@ const render = (view = null) => {
         }
 
         if (State.currentGroup) {
-            renderGroupDetails();
+            if (State.currentCategory) {
+                renderCategoryDetails();
+            } else {
+                renderGroupDetails();
+            }
         } else {
             renderDashboard();
             renderDashboard();
@@ -212,25 +249,8 @@ const renderDashboard = () => {
 };
 
 const renderGroupDetails = () => {
-    // Ensure we have expenses loaded or loading 
-    // (In a real app, might want a loading state, but we fetch on openGroup)
-
-    // --- Category Config ---
-    const getCategoryColor = (cat) => {
-        const colors = {
-            'Grocery': 'bg-green-500',
-            'Fuel': 'orange-500',
-            'Medical': 'bg-red-500',
-            'Household': 'bg-purple-500',
-            'Entertainment': 'bg-pink-500',
-            'Dining': 'bg-yellow-500',
-            'Transport': 'bg-blue-500',
-            'Other': 'bg-gray-500'
-        };
-        return colors[cat] || 'bg-gray-500';
-    };
-
-    const expenseList = State.expenses.map(e => `
+    const sortedExpenses = getFilteredAndSortedExpenses();
+    const expenseList = sortedExpenses.map(e => `
         <div class="p-4 border-b last:border-0 flex justify-between items-center hover:bg-gray-50 transition">
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)}">
@@ -238,7 +258,7 @@ const renderGroupDetails = () => {
                 </div>
                 <div>
                     <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <p class="text-xs text-gray-500">${e.paid_by} • ${e.date}</p>
+                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
             <span class="font-bold text-gray-800">₹${e.amount}</span>
@@ -248,71 +268,139 @@ const renderGroupDetails = () => {
     app.innerHTML = `
         <div class="min-h-screen bg-gray-50 fade-in">
             <nav class="bg-indigo-600 p-4 text-white shadow-lg sticky top-0 z-10">
-                <div class="container mx-auto flex items-center gap-4">
-                    <button onclick="closeGroup()" class="text-indigo-200 hover:text-white">&larr; Back</button>
-                    <h1 class="text-xl font-bold">${State.currentGroup.name}</h1>
+                <div class="container mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <button onclick="closeGroup()" class="text-indigo-200 hover:text-white">&larr; Back</button>
+                        <h1 class="text-xl font-bold">${State.currentGroup.name}</h1>
+                    </div>
+                    <button onclick="toggleSort()" class="text-xs bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded">
+                        Sort: ${State.sortBy === 'date-desc' ? 'Newest' : 'Oldest'}
+                    </button>
                 </div>
             </nav>
 
             <div class="container mx-auto p-6">
+                <!-- Categories -->
                 <div class="flex justify-between items-center mb-6">
                     <div class="flex gap-2 overflow-x-auto pb-2">
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Grocery</span>
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Fuel</span>
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Medical</span>
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Household</span>
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Dining</span>
-                        <span class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap">Transport</span>
+                        ${Object.keys(groupedCategories).map(cat => `
+                             <button onclick="openCategory('${cat}')" class="px-3 py-1 bg-white text-gray-600 rounded-full text-xs shadow-sm border whitespace-nowrap hover:bg-gray-100 flex-shrink-0">
+                                ${cat}
+                             </button>
+                        `).join('')}
                     </div>
-                    <button onclick="document.getElementById('addModal').classList.remove('hidden')" 
-                        class="bg-pink-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-pink-600 transition whitespace-nowrap">
-                        + Add Expense
+                     <button onclick="document.getElementById('addModal').classList.remove('hidden')" 
+                        class="bg-pink-500 text-white px-4 py-2 rounded-full shadow-lg hover:bg-pink-600 transition whitespace-nowrap flex-shrink-0">
+                        + Add
                     </button>
                 </div>
 
                 <div class="bg-white rounded-xl shadow overflow-hidden">
-                    ${State.expenses.length ? expenseList : '<div class="p-8 text-center text-gray-500">No expenses yet.</div>'}
+                    ${sortedExpenses.length ? expenseList : '<div class="p-8 text-center text-gray-500">No expenses yet.</div>'}
                 </div>
             </div>
+            ${renderAddModal()}
+        </div>
+    `;
+};
 
-            <!-- Add Modal -->
-            <div id="addModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
-                <div class="bg-white p-6 rounded-lg w-full max-w-sm fade-in">
-                    <h3 class="text-xl font-bold mb-4">Add Expense</h3>
-                    <form onsubmit="event.preventDefault(); submitExpense(this)">
-                        <input type="text" name="desc" placeholder="Description" class="w-full border p-2 rounded mb-4" required>
-                        <input type="number" name="amount" placeholder="Amount (INR)" class="w-full border p-2 rounded mb-4" required>
-                        <select name="category" class="w-full border p-2 rounded mb-4">
-                            <option value="Grocery">Grocery</option>
-                            <option value="Fuel">Fuel</option>
-                            <option value="Medical">Medical</option>
-                            <option value="Household">Household</option>
-                            <option value="Dining">Dining</option>
-                            <option value="Transport">Transport</option>
-                            <option value="Entertainment">Entertainment</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <div class="flex justify-end gap-2">
-                            <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="text-gray-500 px-3 py-1">Cancel</button>
-                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded">Add</button>
-                        </div>
-                    </form>
+const renderCategoryDetails = () => {
+    const sortedExpenses = getFilteredAndSortedExpenses();
+    const expenseList = sortedExpenses.map(e => `
+        <div class="p-4 border-b last:border-0 flex justify-between items-center hover:bg-gray-50 transition">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)}">
+                  ${e.category[0]}
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
+                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.created_at).toLocaleDateString()}</p>
+                </div>
+            </div>
+            <span class="font-bold text-gray-800">₹${e.amount}</span>
+        </div>
+    `).join('');
+
+    app.innerHTML = `
+        <div class="min-h-screen bg-gray-50 fade-in">
+             <nav class="${getCategoryColor(State.currentCategory)} p-4 text-white shadow-lg sticky top-0 z-10 transition-colors">
+                <div class="container mx-auto flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <button onclick="closeCategory()" class="text-white/80 hover:text-white">&larr; Back</button>
+                        <h1 class="text-xl font-bold">${State.currentCategory}</h1>
+                    </div>
+                     <button onclick="toggleSort()" class="text-xs bg-black/20 hover:bg-black/30 px-3 py-1 rounded">
+                        Sort: ${State.sortBy === 'date-desc' ? 'Newest' : 'Oldest'}
+                    </button>
+                </div>
+            </nav>
+
+            <div class="container mx-auto p-6">
+                 <div class="bg-white rounded-xl shadow overflow-hidden">
+                    ${sortedExpenses.length ? expenseList : '<div class="p-8 text-center text-gray-500">No expenses in this category.</div>'}
                 </div>
             </div>
         </div>
     `;
+}
+
+// Re-usable modal
+const renderAddModal = () => `
+    <div id="addModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-sm fade-in">
+            <h3 class="text-xl font-bold mb-4">Add Expense</h3>
+            <form onsubmit="event.preventDefault(); submitExpense(this)">
+                <input type="text" name="desc" placeholder="Description" class="w-full border p-2 rounded mb-4" required>
+                <input type="number" name="amount" placeholder="Amount (INR)" class="w-full border p-2 rounded mb-4" required>
+                <select name="category" class="w-full border p-2 rounded mb-4">
+                    <option value="Grocery">Grocery</option>
+                    <option value="Fuel">Fuel</option>
+                    <option value="Medical">Medical</option>
+                    <option value="Household">Household</option>
+                    <option value="Dining">Dining</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Other">Other</option>
+                </select>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="text-gray-500 px-3 py-1">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+`;
+
+const groupedCategories = {
+    'Grocery': true, 'Fuel': true, 'Medical': true, 'Household': true,
+    'Dining': true, 'Transport': true, 'Entertainment': true, 'Other': true
 };
 
 // --- Helpers ---
 window.openGroup = (id, name) => {
     State.currentGroup = { id, name };
     fetchExpenses(id); // Will trigger render
-    renderGroupDetails(); // Optimistic render
 };
 
 window.closeGroup = () => {
     State.currentGroup = null;
+    State.currentCategory = null; // Reset category
     renderDashboard();
+};
+
+window.openCategory = (cat) => {
+    State.currentCategory = cat;
+    render();
+};
+
+window.closeCategory = () => {
+    State.currentCategory = null;
+    render();
+};
+
+window.toggleSort = () => {
+    State.sortBy = State.sortBy === 'date-desc' ? 'date-asc' : 'date-desc';
+    render();
 };
 
 window.promptCreateGroup = () => {
