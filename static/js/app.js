@@ -1,10 +1,12 @@
 const API_URL = '/api';
+console.log("App v10 Loaded"); // Debug version
 let State = {
     user: JSON.parse(localStorage.getItem('user')),
     token: localStorage.getItem('token'),
     currentGroup: null,
     groups: [],
-    expenses: []
+    expenses: [],
+    hasFetchedGroups: false // Prevent infinite loop
 };
 
 // --- API Helpers ---
@@ -69,8 +71,16 @@ const logout = () => {
 // --- Data Actions ---
 const fetchGroups = async () => {
     if (!State.user) return;
-    State.groups = await apiCall(`/groups/${State.user.id}`);
-    render();
+    try {
+        const groups = await apiCall(`/groups/${State.user.id}`);
+        State.groups = Array.isArray(groups) ? groups : [];
+    } catch (e) {
+        console.error("Failed to fetch groups", e);
+        State.groups = [];
+    } finally {
+        State.hasFetchedGroups = true; // Mark as fetched regardless of success
+        render();
+    }
 };
 
 const createGroup = async (name) => {
@@ -120,8 +130,8 @@ const render = (view = null) => {
             renderGroupDetails();
         } else {
             renderDashboard();
-            // Fetch groups if empty (simple check)
-            if (State.groups.length === 0) fetchGroups();
+            renderDashboard();
+            // Fetch groups if empty is now handled by init() or explict actions
         }
     } catch (err) {
         console.error("Render Error:", err);
@@ -322,4 +332,14 @@ window.logout = logout;
 window.render = render;
 
 // Initial Render
-render();
+// --- Initialization ---
+const init = () => {
+    if (State.user) {
+        // If logged in, fetch groups first, then render
+        fetchGroups();
+    } else {
+        render();
+    }
+};
+
+init();
