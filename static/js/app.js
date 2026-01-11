@@ -294,22 +294,20 @@ const renderGroupDetails = () => {
     const expenseList = sortedExpenses.map(e => `
         <div class="p-4 border-b last:border-0 flex justify-between items-center hover:bg-gray-50 transition">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)}">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)} flex-shrink-0">
                   ${e.category[0]}
                 </div>
-                <div>
-                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
-                </div>
-            </div>
+                <div class="flex flex-col">
+                    <h4 class="font-semibold text-gray-800 text-sm">${e.category}</h4>
+                    <p class="text-sm text-gray-700 font-medium">${e.description}</p>
+                    <p class="text-xs text-gray-500 mt-1">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
             <div class="flex flex-col items-end gap-1">
                 <span class="font-bold text-gray-800">₹${e.amount}</span>
                 <div class="flex gap-2 text-xs text-gray-400">
-                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600">Edit</button>
-                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600">Del</button>
+                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600 p-1">Edit</button>
+                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600 p-1">Del</button>
                 </div>
             </div>
         </div>
@@ -362,22 +360,20 @@ const renderCategoryDetails = () => {
     const expenseList = sortedExpenses.map(e => `
         <div class="p-4 border-b last:border-0 flex justify-between items-center hover:bg-gray-50 transition">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)}">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${getCategoryColor(e.category)} flex-shrink-0">
                   ${e.category[0]}
                 </div>
-                <div>
-                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <h4 class="font-semibold text-gray-800">${e.description}</h4>
-                    <p class="text-xs text-gray-500">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
+                <div class="flex flex-col">
+                    <h4 class="font-semibold text-gray-800 text-sm">${e.category}</h4>
+                    <p class="text-sm text-gray-700 font-medium">${e.description}</p>
+                    <p class="text-xs text-gray-500 mt-1">${e.paid_by} • ${new Date(e.date || e.created_at).toLocaleDateString()}</p>
                 </div>
             </div>
-                </div>
-            </div>
-             <div class="flex flex-col items-end gap-1">
+            <div class="flex flex-col items-end gap-1">
                 <span class="font-bold text-gray-800">₹${e.amount}</span>
                 <div class="flex gap-2 text-xs text-gray-400">
-                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600">Edit</button>
-                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600">Del</button>
+                     <button onclick="editExpense(${e.id})" class="hover:text-indigo-600 p-1">Edit</button>
+                     <button onclick="deleteExpense(${e.id})" class="hover:text-red-600 p-1">Del</button>
                 </div>
             </div>
         </div>
