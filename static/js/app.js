@@ -300,7 +300,7 @@ const renderGroupDetails = () => {
                     </div>
                     <div class="flex items-center gap-2">
                         <input type="date" onchange="setFilterDate(this.value)" class="text-black text-xs px-2 py-1 rounded" value="${State.filterDate || ''}">
-                        <button onclick="toggleSort()" class="text-xs bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded">
+                        <button onclick="toggleSort()" class="text-xs bg-white text-indigo-600 hover:bg-gray-100 px-3 py-1 rounded shadow-sm font-semibold">
                             Sort: ${State.sortBy === 'date-desc' ? 'New' : 'Old'}
                         </button>
                     </div>
@@ -357,8 +357,8 @@ const renderCategoryDetails = () => {
                         <button onclick="closeCategory()" class="text-white/80 hover:text-white">&larr; Back</button>
                         <h1 class="text-xl font-bold">${State.currentCategory}</h1>
                     </div>
-                     <button onclick="toggleSort()" class="text-xs bg-black/20 hover:bg-black/30 px-3 py-1 rounded">
-                        Sort: ${State.sortBy === 'date-desc' ? 'Newest' : 'Oldest'}
+                     <button onclick="toggleSort()" class="text-xs bg-white text-gray-800 hover:bg-gray-100 px-3 py-1 rounded shadow-sm font-semibold">
+                        Sort: ${State.sortBy === 'date-desc' ? 'New' : 'Old'}
                     </button>
                 </div>
             </nav>
