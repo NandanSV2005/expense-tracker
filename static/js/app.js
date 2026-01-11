@@ -7,8 +7,26 @@ let State = {
     groups: [],
     expenses: [],
     hasFetchedGroups: false, // Prevent infinite loop
+    hasFetchedGroups: false, // Prevent infinite loop
     sortBy: 'date-desc', // 'date-desc' or 'date-asc'
+    filterDate: null, // yyyy-mm-dd string
     currentCategory: null // null or string
+};
+
+// --- History Handling ---
+window.onpopstate = (event) => {
+    const s = event.state;
+    if (!s) {
+        renderDashboard(false); // false = don't push state
+    } else if (s.view === 'group') {
+        State.currentGroup = s.data;
+        State.currentCategory = null;
+        fetchExpenses(s.data.id, false); // false = don't push
+    } else if (s.view === 'category') {
+        State.currentCategory = s.data.cat;
+        State.currentGroup = s.data.group;
+        render(false);
+    }
 };
 
 // --- API Helpers ---
@@ -99,9 +117,9 @@ const joinGroup = async (code) => {
     }
 };
 
-const fetchExpenses = async (groupId) => {
+const fetchExpenses = async (groupId, updateHistory = true) => {
     State.expenses = await apiCall(`/group/${groupId}/expenses`);
-    render(); // Re-render to show expenses
+    render(null, updateHistory);
 };
 
 const addExpense = async (amount, category, description) => {
@@ -121,10 +139,13 @@ const getFilteredAndSortedExpenses = () => {
     if (State.currentCategory) {
         filtered = filtered.filter(e => e.category === State.currentCategory);
     }
+    if (State.filterDate) {
+        filtered = filtered.filter(e => (e.date || e.created_at || '').startsWith(State.filterDate));
+    }
 
     return filtered.sort((a, b) => {
-        const dateA = new Date(a.created_at || a.date);
-        const dateB = new Date(b.created_at || b.date);
+        const dateA = new Date(a.date || a.created_at);
+        const dateB = new Date(b.date || b.created_at);
         return State.sortBy === 'date-desc' ? dateB - dateA : dateA - dateB;
     });
 };
@@ -149,7 +170,7 @@ const getCategoryColor = (cat) => {
 // --- Router / Renderer ---
 const app = document.getElementById('app');
 
-const render = (view = null) => {
+const render = (view = null, updateHistory = true) => {
     try {
         app.innerHTML = '';
 
@@ -162,12 +183,16 @@ const render = (view = null) => {
         if (State.currentGroup) {
             if (State.currentCategory) {
                 renderCategoryDetails();
+                if (updateHistory) history.pushState({ view: 'category', data: { cat: State.currentCategory, group: State.currentGroup } }, '', '');
             } else {
                 renderGroupDetails();
+                if (updateHistory) history.pushState({ view: 'group', data: State.currentGroup }, '', '');
             }
         } else {
             renderDashboard();
-            renderDashboard();
+            if (updateHistory && history.state && history.state.view !== 'dashboard') {
+                history.pushState({ view: 'dashboard' }, '', '');
+            }
             // Fetch groups if empty is now handled by init() or explict actions
         }
     } catch (err) {
@@ -273,9 +298,12 @@ const renderGroupDetails = () => {
                         <button onclick="closeGroup()" class="text-indigo-200 hover:text-white">&larr; Back</button>
                         <h1 class="text-xl font-bold">${State.currentGroup.name}</h1>
                     </div>
-                    <button onclick="toggleSort()" class="text-xs bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded">
-                        Sort: ${State.sortBy === 'date-desc' ? 'Newest' : 'Oldest'}
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <input type="date" onchange="setFilterDate(this.value)" class="text-black text-xs px-2 py-1 rounded" value="${State.filterDate || ''}">
+                        <button onclick="toggleSort()" class="text-xs bg-indigo-500 hover:bg-indigo-400 px-3 py-1 rounded">
+                            Sort: ${State.sortBy === 'date-desc' ? 'New' : 'Old'}
+                        </button>
+                    </div>
                 </div>
             </nav>
 
@@ -379,13 +407,16 @@ const groupedCategories = {
 // --- Helpers ---
 window.openGroup = (id, name) => {
     State.currentGroup = { id, name };
-    fetchExpenses(id); // Will trigger render
+    State.filterDate = null; // Reset filter
+    fetchExpenses(id); // updates history by default
 };
 
 window.closeGroup = () => {
     State.currentGroup = null;
-    State.currentCategory = null; // Reset category
+    State.currentCategory = null;
+    State.filterDate = null;
     renderDashboard();
+    history.pushState({ view: 'dashboard' }, '', '');
 };
 
 window.openCategory = (cat) => {
@@ -400,7 +431,12 @@ window.closeCategory = () => {
 
 window.toggleSort = () => {
     State.sortBy = State.sortBy === 'date-desc' ? 'date-asc' : 'date-desc';
-    render();
+    render(null, false); // Don't push history for sorting
+};
+
+window.setFilterDate = (date) => {
+    State.filterDate = date;
+    render(null, false);
 };
 
 window.promptCreateGroup = () => {
